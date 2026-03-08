@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>RAG Simulator</title>
+
+<style>
+
+*{
+box-sizing:border-box;
+font-family:system-ui, -apple-system, sans-serif;
+}
+
+body{
+margin:0;
+background:#0f172a;
+color:white;
+display:flex;
+justify-content:center;
+padding:40px;
+}
+
+.container{
+width:1000px;
+}
+
+h1{
+text-align:center;
+margin-bottom:30px;
+}
+
+.card{
+background:#1e293b;
+border-radius:12px;
+padding:20px;
+margin-bottom:20px;
+box-shadow:0 10px 30px rgba(0,0,0,0.3);
+}
+
+textarea,input{
+width:100%;
+padding:12px;
+margin-top:10px;
+border-radius:8px;
+border:none;
+font-size:14px;
+}
+
+button{
+margin-top:12px;
+padding:10px 16px;
+border:none;
+border-radius:8px;
+background:#38bdf8;
+color:black;
+font-weight:bold;
+cursor:pointer;
+}
+
+button:hover{
+background:#0ea5e9;
+}
+
+.stepTitle{
+font-weight:bold;
+margin-bottom:10px;
+}
+
+.chunk{
+background:#334155;
+padding:10px;
+border-radius:6px;
+margin:6px 0;
+}
+
+.vector{
+background:#475569;
+padding:10px;
+border-radius:6px;
+margin:6px 0;
+font-size:13px;
+}
+
+.score{
+background:#1e40af;
+padding:10px;
+border-radius:6px;
+margin:6px 0;
+}
+
+.result{
+background:#22c55e;
+color:black;
+padding:14px;
+border-radius:8px;
+margin-top:10px;
+font-weight:bold;
+}
+
+.pipeline{
+display:grid;
+grid-template-columns:repeat(7,1fr);
+gap:8px;
+margin-bottom:20px;
+}
+
+.stage{
+background:#1e293b;
+padding:10px;
+border-radius:8px;
+text-align:center;
+font-size:12px;
+}
+
+.active{
+background:#22c55e;
+color:black;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>RAG Pipeline Simulator</h1>
+
+<div class="pipeline">
+<div id="s1" class="stage">Document</div>
+<div id="s2" class="stage">Chunks</div>
+<div id="s3" class="stage">Embeddings</div>
+<div id="s4" class="stage">Query</div>
+<div id="s5" class="stage">Query Vector</div>
+<div id="s6" class="stage">Similarity</div>
+<div id="s7" class="stage">Answer</div>
+</div>
+
+
+<div class="card">
+
+<div class="stepTitle">1. Enter Document</div>
+
+<textarea id="document" rows="4" placeholder="Paste document text here..."></textarea>
+
+<button onclick="chunk()">Create Chunks</button>
+
+<div id="chunks"></div>
+
+</div>
+
+
+<div class="card">
+
+<div class="stepTitle">2. Generate Embeddings</div>
+
+<button onclick="embed()">Create Embeddings</button>
+
+<div id="vectors"></div>
+
+</div>
+
+
+<div class="card">
+
+<div class="stepTitle">3. Ask Question</div>
+
+<input id="query" placeholder="Enter your question">
+
+<button onclick="runRAG()">Run RAG</button>
+
+<div id="queryVector"></div>
+
+<div id="scores"></div>
+
+<div id="answer"></div>
+
+</div>
+
+</div>
+
+
+<script>
+
+let chunks=[]
+let vectors=[]
+
+
+function activate(id){
+
+document.querySelectorAll(".stage").forEach(s=>s.classList.remove("active"))
+document.getElementById(id).classList.add("active")
+
+}
+
+
+function chunk(){
+
+activate("s2")
+
+let text=document.getElementById("document").value
+
+chunks=text.split(".").filter(x=>x.trim()!="")
+
+let html=""
+
+chunks.forEach((c,i)=>{
+
+html+=`<div class="chunk">Chunk ${i+1}: ${c}</div>`
+
+})
+
+document.getElementById("chunks").innerHTML=html
+
+}
+
+
+function fakeEmbedding(text){
+
+let vec=[]
+
+for(let i=0;i<6;i++){
+
+vec.push(Math.random().toFixed(2))
+
+}
+
+return vec
+
+}
+
+
+function embed(){
+
+activate("s3")
+
+vectors=chunks.map(c=>fakeEmbedding(c))
+
+let html=""
+
+vectors.forEach((v,i)=>{
+
+html+=`<div class="vector">Chunk ${i+1} Vector: [${v}]</div>`
+
+})
+
+document.getElementById("vectors").innerHTML=html
+
+}
+
+
+function cosine(a,b){
+
+let dot=0
+let magA=0
+let magB=0
+
+for(let i=0;i<a.length;i++){
+
+dot+=a[i]*b[i]
+magA+=a[i]*a[i]
+magB+=b[i]*b[i]
+
+}
+
+magA=Math.sqrt(magA)
+magB=Math.sqrt(magB)
+
+return dot/(magA*magB)
+
+}
+
+
+function runRAG(){
+
+activate("s4")
+
+let query=document.getElementById("query").value
+
+let qVec=fakeEmbedding(query)
+
+activate("s5")
+
+document.getElementById("queryVector").innerHTML=
+`<div class="vector">Query Vector: [${qVec}]</div>`
+
+
+activate("s6")
+
+let scores=vectors.map(v=>cosine(v,qVec))
+
+let html=""
+
+scores.forEach((s,i)=>{
+
+html+=`<div class="score">
+Similarity with Chunk ${i+1}: ${s.toFixed(3)}
+</div>`
+
+})
+
+document.getElementById("scores").innerHTML=html
+
+
+let best=scores.indexOf(Math.max(...scores))
+
+activate("s7")
+
+document.getElementById("answer").innerHTML=
+`<div class="result">
+Retrieved Context:<br><br>
+${chunks[best]}
+<br><br>
+LLM Answer (Simulated):
+Based on retrieved context, this chunk best answers your question.
+</div>`
+
+}
+
+</script>
+
+</body>
+</html>
